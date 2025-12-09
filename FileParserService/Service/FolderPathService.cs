@@ -5,7 +5,7 @@ using Newtonsoft.Json.Linq;
 
 namespace FileParserService.Service;
 
-public class FolderPathService(IConfiguration config, ILogger<FolderPathService> logger, string configPath)
+public class FolderPathService(IConfiguration config, ILogger logger, string configPath)
 {
     public async Task<string> GetFolderPathAsync()
     {
