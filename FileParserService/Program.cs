@@ -20,8 +20,31 @@ var folderService = new FolderPathService(configuration, logger, configPath);
 var folderPath = await folderService.GetFolderPathAsync();
 
 var xmlService = new XmlParseService(folderPath, logger);
+var statusChanger = new StatusChangeService(logger);
 var cts = new CancellationTokenSource();
-await foreach (var model in xmlService.StartParse(cts.Token))
+
+var processedModel = new ProcessedModelService();
+var models = xmlService.StartParse(cts.Token);
+
+await Parallel.ForEachAsync(models, new ParallelOptions
+    {
+        MaxDegreeOfParallelism = 4, 
+        CancellationToken = cts.Token
+    },
+    
+    async (model, token) =>
+    {
+        var updated = await Task.Run(() => statusChanger.UpdateStatus(model), token);
+
+        if (!updated)
+            logger.LogError("Статус не обновлен: " + model.PackageID);
+        else
+            processedModel.AddInEnqueue(model);
+
+        logger.LogInformation("Статус обновлен: " + model.PackageID);
+    });
+
+while (processedModel.TryGetNextModel(out var model))
 {
-    logger.LogInformation("Обработка модели: " + model);
+    
 }
