@@ -28,10 +28,9 @@ var models = xmlService.StartParse(cts.Token);
 
 await Parallel.ForEachAsync(models, new ParallelOptions
     {
-        MaxDegreeOfParallelism = 4, 
+        MaxDegreeOfParallelism = 4,
         CancellationToken = cts.Token
     },
-    
     async (model, token) =>
     {
         var updated = await Task.Run(() => statusChanger.UpdateStatus(model), token);
@@ -44,7 +43,25 @@ await Parallel.ForEachAsync(models, new ParallelOptions
         logger.LogInformation("Статус обновлен: " + model.PackageID);
     });
 
+var jsonParser = new JsonParserService();
+
 while (processedModel.TryGetNextModel(out var model))
 {
-    
+    logger.LogInformation("Преобразовываем данные в json: " + model.PackageID);
+
+    try
+    {
+        var jsonBytes = jsonParser.ConvertToJson(model);
+        logger.LogInformation("Json преобразован.");
+        
+
+    }
+    catch (OperationCanceledException)
+    {
+        logger.LogWarning($"Операция отменена пользователем: {model.PackageID}");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError($"Ошибка преобразования {model.PackageID}" + ex.Message);
+    }
 }
