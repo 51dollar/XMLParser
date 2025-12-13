@@ -12,6 +12,9 @@ public class RabbitService : IAsyncDisposable
     
     public RabbitService(string host, string queueName)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(host);
+        ArgumentException.ThrowIfNullOrWhiteSpace(queueName);
+        
         _queueName = queueName;
         _factory = new ConnectionFactory
         {

@@ -1,10 +1,9 @@
 ﻿using FileParserService.Extensions;
 using FileParserService.Models;
-using Microsoft.Extensions.Logging;
 
 namespace FileParserService.Service;
 
-public class StatusChangeService(ILogger logger)
+public class StatusChangeService
 {
     public bool UpdateStatus(ModelXmlParse? model)
     {

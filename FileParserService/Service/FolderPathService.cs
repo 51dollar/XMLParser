@@ -5,59 +5,66 @@ using Newtonsoft.Json.Linq;
 
 namespace FileParserService.Service;
 
-public class FolderPathService(IConfiguration config, ILogger logger, string configPath)
+public class FolderPathService
 {
+    private readonly IConfiguration _config;
+    private readonly ILogger<FolderPathService> _logger;
+    private readonly string _configPath;
+
+    public FolderPathService(IConfiguration config, ILogger<FolderPathService> logger, string configPath)
+    {
+        _config = config;
+        _logger = logger;
+        _configPath = configPath;
+    }
+
     public async Task<string> GetFolderPathAsync()
     {
-        string? folderPath = config["FolderPath"];
-        
-        logger.LogInformation("Чтение пути из конфигурации.");
-
-        if (string.IsNullOrWhiteSpace(folderPath))
-            logger.LogWarning("Путь к папке в конфигурации отсутствует");
-        else if (!Directory.Exists(folderPath))
-            logger.LogWarning("Путь в конфигурации найден, но директория не существует.");
+        string? folderPath = _config["FolderPath"];
+        _logger.LogInformation("Чтение пути из конфигурации.");
 
         if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
         {
-            Console.WriteLine("Путь отсутствует или директория не существует.");
-            Console.Write("Введите путь к директории: ");
-            
-            folderPath = Console.ReadLine();
-            logger.LogInformation("Путь введенный пользователем: " + folderPath);
-            
-            while (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
-            {
-                logger.LogWarning("Пользователь ввёл некорректный путь: " + folderPath);
-                Console.WriteLine("Такой директории не существует. Повторите ввод.");
-                Console.Write("Введите путь: ");
-                folderPath = Console.ReadLine();
-            }
-            
+            _logger.LogWarning("Путь отсутствует или директория не существует.");
+            folderPath = await PromptUserForFolderPathAsync();
             await UpdateJsonConfigAsync(folderPath);
-            logger.LogInformation("Путь обновлен и сохранен.");
+            _logger.LogInformation("Путь обновлён и сохранён в конфигурации.");
         }
         else
         {
-            logger.LogInformation("Путь успешно загружен.");
+            _logger.LogInformation("Путь успешно загружен: {FolderPath}", folderPath);
         }
-        
+
+        return folderPath;
+    }
+
+    private async Task<string> PromptUserForFolderPathAsync()
+    {
+        string? folderPath;
+        do
+        {
+            Console.Write("Введите путь к директории: ");
+            folderPath = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
+            {
+                _logger.LogWarning("Некорректный путь: {FolderPath}", folderPath);
+                Console.WriteLine("Такой директории не существует. Повторите ввод.");
+            }
+        } while (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath));
+
+        _logger.LogInformation("Путь, введённый пользователем: {FolderPath}", folderPath);
         return folderPath;
     }
 
     private async Task UpdateJsonConfigAsync(string folderPath)
     {
-        logger.LogInformation("Обновление файла конфигурациию.");
-        
-        var json = await File.ReadAllTextAsync(configPath);
+        _logger.LogInformation("Обновление файла конфигурации: {ConfigPath}", _configPath);
+
+        var json = await File.ReadAllTextAsync(_configPath);
         var data = JObject.Parse(json);
-        
         data["FolderPath"] = folderPath;
-        
-        await File.WriteAllTextAsync(
-            configPath, 
-            data.ToString(Formatting.Indented));
-        
-        logger.LogInformation("Файл конфигурации обновлен.");
+
+        await File.WriteAllTextAsync(_configPath, data.ToString(Formatting.Indented));
+        _logger.LogInformation("Файл конфигурации успешно обновлён.");
     }
 }
