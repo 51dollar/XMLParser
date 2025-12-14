@@ -1,4 +1,4 @@
-﻿using FileParserService.Models.Type;
+﻿using Shared.Models.Type;
 
 namespace FileParserService.Extensions;
 

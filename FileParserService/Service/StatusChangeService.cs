@@ -1,5 +1,5 @@
 ﻿using FileParserService.Extensions;
-using FileParserService.Models;
+using Shared.Models;
 
 namespace FileParserService.Service;
 

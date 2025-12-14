@@ -1,7 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Xml.Serialization;
-using FileParserService.Models;
 using Microsoft.Extensions.Logging;
+using Shared.Models;
 
 namespace FileParserService.Service;
 

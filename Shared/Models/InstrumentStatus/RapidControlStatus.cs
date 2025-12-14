@@ -1,6 +1,6 @@
 ﻿using System.Xml.Serialization;
 
-namespace FileParserService.Models.InstrumentStatus;
+namespace Shared.Models.InstrumentStatus;
 
 public class RapidControlStatus
 {

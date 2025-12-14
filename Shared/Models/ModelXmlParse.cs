@@ -1,7 +1,7 @@
 ﻿using System.Xml.Serialization;
-using FileParserService.Models.InstrumentStatus;
+using Shared.Models.InstrumentStatus;
 
-namespace FileParserService.Models;
+namespace Shared.Models;
 
 [XmlRoot("InstrumentStatus")]
 public class ModelXmlParse

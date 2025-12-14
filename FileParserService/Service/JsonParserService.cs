@@ -1,6 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
-using FileParserService.Models;
+using Shared.Models;
 
 namespace FileParserService.Service;
 

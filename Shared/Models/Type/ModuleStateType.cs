@@ -1,4 +1,4 @@
-﻿namespace FileParserService.Models.Type;
+﻿namespace Shared.Models.Type;
 
 public enum ModuleStateType
 {

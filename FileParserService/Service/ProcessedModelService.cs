@@ -1,5 +1,5 @@
 ﻿using System.Collections.Concurrent;
-using FileParserService.Models;
+using Shared.Models;
 
 namespace FileParserService.Service;
 
