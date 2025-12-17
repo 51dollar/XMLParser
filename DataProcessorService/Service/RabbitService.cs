@@ -10,13 +10,16 @@ using Shared.Models;
 
 namespace DataProcessorService.Service;
 
-public class RabbitService(IConfiguration config, ILogger<RabbitService> logger, SqliteService sqliteService)
-    : BackgroundService
+public class RabbitService(
+    IConfiguration config,
+    ILogger<RabbitService> logger,
+    SqliteService sqliteService)
+    : IHostedService, IAsyncDisposable
 {
     private IConnection? _connection;
     private IChannel? _channel;
 
-    public override async Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
         var queueName = config["RabbitMq:QueueName"]
             ?? throw new ArgumentException("RabbitMq:Host не должен быть null");
@@ -47,20 +50,23 @@ public class RabbitService(IConfiguration config, ILogger<RabbitService> logger,
             cancellationToken: cancellationToken
         );
 
-        await base.StartAsync(cancellationToken);
+        logger.LogInformation("RabbitMQ запущен. Очередь: {Queue}", queueName);
     }
 
 
-    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+    public Task StopAsync(CancellationToken cancellationToken)
     {
+        logger.LogInformation("RabbitMQ останавлин.");
         return Task.CompletedTask;
     }
 
-    public override void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _channel?.CloseAsync();
-        _connection?.CloseAsync();
-        base.Dispose();
+        if (_channel != null)
+            await _channel.CloseAsync();
+
+        if (_connection != null)
+            await _connection.CloseAsync();
     }
 
     private async Task HandleMessageAsync(object sender, BasicDeliverEventArgs ea)

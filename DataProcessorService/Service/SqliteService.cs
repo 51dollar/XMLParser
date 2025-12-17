@@ -9,52 +9,32 @@ public class SqliteService(SqLiteDbContext dbContext, ILogger<SqliteService> log
 {
     public async Task AddDateAsync(int moduleCategoryId, string moduleState, CancellationToken token)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(token);
+        var entity = await dbContext.Modules
+            .FirstOrDefaultAsync(x => x.ModuleCategoryID == moduleCategoryId, token);
 
-        try
+        if (entity == null)
         {
+            entity = new ModuleData
+            {
+                ModuleCategoryID = moduleCategoryId,
+                ModuleState = moduleState
+            };
+
+            await dbContext.Modules.AddAsync(entity, token);
+
             logger.LogInformation(
-                "Начало транзакции SQLite. ModuleCategoryID={ModuleCategoryID}", moduleCategoryId);
-            
-            var entity = await dbContext.Modules
-                .FirstOrDefaultAsync(x => x.ModuleCategoryID == moduleCategoryId, token);
-            
-            if (entity == null)
-            {
-                entity = new ModuleData
-                {
-                    ModuleCategoryID = moduleCategoryId,
-                    ModuleState = moduleState
-                };
-
-                await dbContext.Modules.AddAsync(entity, token);
-
-                logger.LogInformation(
-                    "Создана новая запись ModuleCategoryID={ModuleCategoryID}",
-                    moduleCategoryId);
-            }
-            else
-            {
-                entity.ModuleState = moduleState;
-
-                logger.LogInformation(
-                    "Обновлено состояние ModuleCategoryID={ModuleCategoryID}",
-                    moduleCategoryId);
-            }
-            
-            await dbContext.SaveChangesAsync(token);
-            await transaction.CommitAsync(token);
-        }
-        catch (Exception ex)
-        {
-            await transaction.RollbackAsync(token);
-
-            logger.LogError(
-                ex,
-                "Ошибка транзакции SQLite. ModuleCategoryID={ModuleCategoryID}",
+                "Создана новая запись ModuleCategoryID={ModuleCategoryID}",
                 moduleCategoryId);
-
-            throw;
         }
+        else
+        {
+            entity.ModuleState = moduleState;
+
+            logger.LogInformation(
+                "Обновлено состояние ModuleCategoryID={ModuleCategoryID}",
+                moduleCategoryId);
+        }
+
+        await dbContext.SaveChangesAsync(token);
     }
 }

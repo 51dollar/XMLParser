@@ -1,4 +1,5 @@
 ﻿using DataProcessorService.Data;
+using DataProcessorService.Extensions;
 using DataProcessorService.Service;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -14,17 +15,17 @@ var host = Host.CreateDefaultBuilder(args)
     })
     .ConfigureServices((context, services) =>
         {
-            var dbPath = Path.Combine(AppContext.BaseDirectory, "modules.db");
-
-            services.AddDbContext<SqLiteDbContext>(options =>
-                options.UseSqlite($"Data Source={dbPath}"));
-            
             services.AddLogging(builder =>
             {
                 builder.ClearProviders();
                 builder.AddConsole();
             });
             
+            var dbPath = Path.Combine(AppContext.BaseDirectory, "modules.db");
+
+            services.AddDbContext<SqLiteDbContext>(options =>
+                options.UseSqlite($"Data Source={dbPath}"));
+            services.AddHostedService<MigrateDatabaseService<SqLiteDbContext>>();
             services.AddScoped<SqliteService>();
             services.AddHostedService<RabbitService>();
         })
