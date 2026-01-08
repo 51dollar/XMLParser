@@ -1,7 +1,8 @@
 ﻿using System.Runtime.CompilerServices;
+using System.Xml;
 using System.Xml.Serialization;
 using Microsoft.Extensions.Logging;
-using Shared.Models;
+using Shared.Models.Parser.XML;
 
 namespace FileParserService.Service;
 
@@ -10,6 +11,8 @@ public class XmlParseService
     private readonly string _folderPath;
     private readonly ILogger<XmlParseService> _logger;
     private readonly TimeSpan _pollIntervalMs;
+    
+    private static readonly XmlSerializer InstrumentSerializer = new(typeof(InstrumentStatus));
 
     public XmlParseService(
         string folderPath, 
@@ -31,7 +34,7 @@ public class XmlParseService
         _logger.LogInformation("Директории Processed и Error готовы.");
     }
 
-    public async IAsyncEnumerable<ModelXmlParse> StartParse([EnumeratorCancellation] CancellationToken token)
+    public async IAsyncEnumerable<InstrumentStatus> StartParse([EnumeratorCancellation] CancellationToken token)
     {
         _logger.LogInformation("Начало мониторинга директории.");
 
@@ -44,42 +47,72 @@ public class XmlParseService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ошибка при получении файлов из директории:" +  ex.Message);
+                _logger.LogError(ex, "Ошибка при получении файлов из директории: {Message}", ex.Message);
                 await Task.Delay(_pollIntervalMs, token);
                 continue;
             }
 
             foreach (var filePath in files)
             {
-                ModelXmlParse model = null;
+                InstrumentStatus? model = null;
+                var processedSuccessfully = false;
                 try
                 {
-                    await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    var serializer = new XmlSerializer(typeof(ModelXmlParse));
-                    model = (ModelXmlParse)serializer.Deserialize(stream);
-                    _logger.LogInformation("Файл успешно десериализован.");
+                    await using (var stream = new FileStream(
+                        filePath, 
+                        FileMode.Open, 
+                        FileAccess.Read,
+                        FileShare.ReadWrite))
+                    {
+                        var settings = new XmlReaderSettings
+                        {
+                            DtdProcessing = DtdProcessing.Prohibit,
+                            IgnoreComments = true,
+                            IgnoreWhitespace = true
+                        };
+                        
+                        using var xmlReader = XmlReader.Create(stream, settings);
+                        
+                        model = (InstrumentStatus?)InstrumentSerializer.Deserialize(xmlReader);
+                        
+                        if (model == null)
+                            throw new InvalidOperationException("Десериализация вернула null");
+                    }
                     
+                    
+                    if (!model.DeviceStatus.Any())
+                        throw new InvalidOperationException("Файл не содержит данных об устройствах");
+                        
                     var processedPath = Path.Combine(_folderPath, "Processed", Path.GetFileName(filePath));
                     File.Move(filePath, processedPath, overwrite: true);
+                    
+                    processedSuccessfully = true;
+
+                    _logger.LogInformation("Файл {FileName} успешно десериализован и перемещён. PackageId: {PackageId}",
+                        Path.GetFileName(filePath), model.PackageId);
+                    _logger.LogDebug("Файл перемещён в: {ProcessedPath}", processedPath);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Ошибка при обработке файла: " + ex.Message);
+                    _logger.LogError(ex, "Ошибка при обработке файла: {ex}", ex.Message);
 
                     try
                     {
                         var errorPath = Path.Combine(_folderPath, "Error", Path.GetFileName(filePath));
                         File.Move(filePath, errorPath, overwrite: true);
-                        _logger.LogWarning("Файл перемещён в папку Error.");
+                        _logger.LogWarning("Файл перемещён в папку {ErrorPath}.", errorPath);
                     }
                     catch (Exception moveEx)
                     {
-                        _logger.LogError(moveEx, "Не удалось переместить файл в Error." + filePath);
+                        _logger.LogError(moveEx,
+                            "Не удалось переместить файл {FilePath} в Error: {Message}", filePath,moveEx.Message);
                     }
                 }
 
-                if (model != null)
+                if (processedSuccessfully && model != null)
+                {
                     yield return model;
+                }
             }
 
             try

@@ -1,19 +1,21 @@
 ﻿using System.Text;
 using System.Text.Json;
-using Shared.Models;
+using System.Text.Json.Serialization;
+using Shared.Models.Parser.XML;
 
 namespace FileParserService.Service;
 
 public class JsonParserService
 {
-    public byte[] ConvertToJson(ModelXmlParse? model, bool indented = true)
+    public byte[] ConvertToJson(InstrumentStatus? model, bool indented = true)
     {
         if (model == null)
             throw new ArgumentNullException(nameof(model));
         
         var options = new JsonSerializerOptions
         {
-            WriteIndented = indented
+            WriteIndented = indented,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
         string json = JsonSerializer.Serialize(model, options);

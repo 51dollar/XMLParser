@@ -1,38 +1,38 @@
 ﻿using DataProcessorService.Data;
-using DataProcessorService.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Shared.Entity;
 
 namespace DataProcessorService.Service;
 
-public class SqliteService(SqLiteDbContext dbContext, ILogger<SqliteService> logger)
+public class SqliteService(SqliteDbContext dbContext, ILogger<SqliteService> logger)
 {
-    public async Task AddDateAsync(int moduleCategoryId, string moduleState, CancellationToken token)
+    public async Task AddDateAsync(string? moduleCategoryId, string? moduleState, CancellationToken token)
     {
+        if (string.IsNullOrWhiteSpace(moduleCategoryId))
+            throw new ArgumentException("ModuleCategoryId нулевой");
+
+        if (string.IsNullOrWhiteSpace(moduleState))
+            throw new ArgumentException("ModuleState нулевой");
+        
         var entity = await dbContext.Modules
-            .FirstOrDefaultAsync(x => x.ModuleCategoryID == moduleCategoryId, token);
+            .FirstOrDefaultAsync(x => x.ModuleCategoryId == moduleCategoryId, token);
 
         if (entity == null)
         {
             entity = new ModuleData
             {
-                ModuleCategoryID = moduleCategoryId,
+                ModuleCategoryId = moduleCategoryId,
                 ModuleState = moduleState
             };
 
             await dbContext.Modules.AddAsync(entity, token);
-
-            logger.LogInformation(
-                "Создана новая запись ModuleCategoryID={ModuleCategoryID}",
-                moduleCategoryId);
+            logger.LogInformation("Создана новая запись {ModuleCategoryID} в DB", moduleCategoryId);
         }
         else
         {
             entity.ModuleState = moduleState;
-
-            logger.LogInformation(
-                "Обновлено состояние ModuleCategoryID={ModuleCategoryID}",
-                moduleCategoryId);
+            logger.LogInformation("Запись обновлена {ModuleCategoryID}", moduleCategoryId);
         }
 
         await dbContext.SaveChangesAsync(token);

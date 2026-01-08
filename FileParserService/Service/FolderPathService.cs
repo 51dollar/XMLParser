@@ -26,7 +26,7 @@ public class FolderPathService
         if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
         {
             _logger.LogWarning("Путь отсутствует или директория не существует.");
-            folderPath = await PromptUserForFolderPathAsync();
+            folderPath = PromptUserForFolderPath();
             await UpdateJsonConfigAsync(folderPath);
             _logger.LogInformation("Путь обновлён и сохранён в конфигурации.");
         }
@@ -38,7 +38,7 @@ public class FolderPathService
         return folderPath;
     }
 
-    private async Task<string> PromptUserForFolderPathAsync()
+    private string PromptUserForFolderPath()
     {
         string? folderPath;
         do

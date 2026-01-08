@@ -1,24 +1,21 @@
 ﻿using FileParserService.Extensions;
-using Shared.Models;
+using Shared.Models.Parser.XML;
 
 namespace FileParserService.Service;
 
 public class StatusChangeService
 {
-    public bool UpdateStatus(ModelXmlParse? model)
+    public bool UpdateStatus(InstrumentStatus? model)
     {
         if (model?.DeviceStatus == null)
             return false;
         
-        foreach (var deviceState in model.DeviceStatus)
+        foreach (var status in model.DeviceStatus)
         {
-            foreach (var rapidControlState in deviceState.RapidControlStatus)
-            {
-                foreach (var combinedSamplerState in rapidControlState.CombinedSamplerStatus)
-                {
-                    combinedSamplerState.ModuleState = ModuleStateExtensions.GetRandomStateToString();
-                }
-            }
+            if (status.RapidControlStatus?.ModuleState == null && string.IsNullOrEmpty(status.RapidControlStatus?.ModuleState))
+                return false;
+
+            status.RapidControlStatus.ModuleState = ModuleStateExtensions.GetRandomStateToString();
         }
         
         return true;

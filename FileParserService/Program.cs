@@ -28,16 +28,9 @@ var host = Host.CreateDefaultBuilder(args)
         });
         services.AddSingleton<StatusChangeService>();
         services.AddSingleton<JsonParserService>();
-        services.AddSingleton<RabbitService>(provider =>
-        {
-            var configuration = provider.GetRequiredService<IConfiguration>();
-
-            var host = configuration["RabbitMq:Host"] ?? string.Empty;
-            var queueName = configuration["RabbitMq:QueueName"] ?? string.Empty;
-
-            return new RabbitService(host, queueName);
-        });
-
+        services.AddSingleton<RabbitService>();
+        services.AddHostedService(provider => 
+            provider.GetRequiredService<RabbitService>());
         services.AddHostedService<XmlParseWorker>();
         services.AddHostedService<JsonPublishWorker>();
     })

@@ -3,34 +3,20 @@ using Microsoft.Extensions.Logging;
 
 namespace FileParserService.Service;
 
-public class XmlParseWorker : BackgroundService
+public class XmlParseWorker(
+    ILogger<XmlParseWorker> logger,
+    ILoggerFactory loggerFactory,
+    FolderPathService folderPathService,
+    StatusChangeService statusChanger,
+    ProcessedModelService processedModel)
+    : BackgroundService
 {
-    private readonly ILogger<XmlParseWorker> _logger;
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly FolderPathService _folderPathService;
-    private readonly StatusChangeService _statusChanger;
-    private readonly ProcessedModelService _processedModel;
-
-    public XmlParseWorker(
-        ILogger<XmlParseWorker> logger,
-        ILoggerFactory loggerFactory,
-        FolderPathService folderPathService,
-        StatusChangeService statusChanger,
-        ProcessedModelService processedModel)
-    {
-        _logger = logger;
-        _loggerFactory = loggerFactory;
-        _folderPathService  = folderPathService;
-        _statusChanger = statusChanger;
-        _processedModel = processedModel;
-    }
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Преобразователь xml запущен!");
+        logger.LogInformation("Преобразователь xml запущен!");
         
-        var folderPath = await _folderPathService.GetFolderPathAsync();
-        var xmlLogger = _loggerFactory.CreateLogger<XmlParseService>();
+        var folderPath = await folderPathService.GetFolderPathAsync();
+        var xmlLogger = loggerFactory.CreateLogger<XmlParseService>();
         var xmlService = new XmlParseService(folderPath, xmlLogger);
         var models = xmlService.StartParse(stoppingToken);
 
@@ -46,29 +32,29 @@ public class XmlParseWorker : BackgroundService
                 try
                 {
                     var updated = await Task.Run(
-                        () => _statusChanger.UpdateStatus(model),
+                        () => statusChanger.UpdateStatus(model),
                         token);
 
                     if (!updated)
                     {
-                        _logger.LogError("Статус не обновлен: {PackageId}", model.PackageID);
+                        logger.LogError("Статус не обновлен: {PackageId}", model.PackageId);
                     }
                     else
                     {
-                        _processedModel.AddInEnqueue(model);
-                        _logger.LogInformation("Статус обновлен: {PackageId}", model.PackageID);
+                        processedModel.AddInEnqueue(model);
+                        logger.LogInformation("Статус обновлен: {PackageId}", model.PackageId);
                     }
                 }
                 catch (OperationCanceledException)
                 {
-                    _logger.LogWarning("Отмена обработки модели: {PackageId}", model.PackageID);
+                    logger.LogWarning("Отмена обработки модели: {PackageId}", model.PackageId);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Ошибка обработки модели: {PackageId}", model.PackageID);
+                    logger.LogError(ex, "Ошибка обработки модели: {PackageId}", model.PackageId);
                 }
             });
 
-        _logger.LogInformation("Преобразователь xml завершён!");
+        logger.LogInformation("Преобразователь xml завершён!");
     }
 }

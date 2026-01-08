@@ -26,29 +26,43 @@ public class JsonPublishWorker : BackgroundService
     {
         _logger.LogInformation("Преобразователь json запущен");
 
-        await _rabbitService.InitializeAsync(stoppingToken);
-
-        while (!stoppingToken.IsCancellationRequested &&
-               _processedModel.TryGetNextModel(out var model))
+        while (!_rabbitService.IsConnected && !stoppingToken.IsCancellationRequested)
         {
-            _logger.LogInformation("Преобразовываем данные в json: {PackageId}", model.PackageID);
+            _logger.LogInformation("Ожидание подключения к RabbitMQ...");
+            await Task.Delay(1000, stoppingToken);
+        }
 
+        _logger.LogInformation("RabbitMQ подключён, начинаем публикацию");
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            if (!_processedModel.TryGetNextModel(out var model))
+            {
+                await Task.Delay(500, stoppingToken);
+                continue;
+            }
+            if (model == null)
+            {
+                _logger.LogWarning("Получена null модель");
+                continue;
+            }
+            
             try
             {
                 var jsonBytes = _jsonParser.ConvertToJson(model);
-                _logger.LogInformation("Json преобразован.");
+                _logger.LogInformation("Json преобразован!");
 
                 await _rabbitService.PublishAsync(jsonBytes, stoppingToken);
                 _logger.LogInformation("Json отправлен!");
             }
             catch (OperationCanceledException)
             {
-                _logger.LogWarning("Операция отменена пользователем: {PackageId}", model.PackageID);
+                _logger.LogWarning("Операция отменена пользователем: {PackageId}", model?.PackageId);
                 break;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ошибка преобразования {PackageId}", model.PackageID);
+                _logger.LogError(ex, "Ошибка преобразования {PackageId}", model?.PackageId);
             }
         }
 
