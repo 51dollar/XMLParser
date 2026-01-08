@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace DataProcessorService.Data.Migrations
 {
-    [DbContext(typeof(SqLiteDbContext))]
+    [DbContext(typeof(SqliteDbContext))]
     [Migration("20260108063234_Initial")]
     partial class Initial
     {
