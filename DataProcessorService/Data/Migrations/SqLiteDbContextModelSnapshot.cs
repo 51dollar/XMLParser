@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace DataProcessorService.Data.Migrations
 {
-    [DbContext(typeof(SqLiteDbContext))]
+    [DbContext(typeof(SqliteDbContext))]
     partial class SqLiteDbContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)

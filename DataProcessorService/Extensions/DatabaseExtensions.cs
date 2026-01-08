@@ -5,9 +5,9 @@ using Microsoft.Extensions.Logging;
 
 namespace DataProcessorService.Extensions;
 
-public class MigrateDatabaseService<TContext>(
+public class DatabaseExtensions<TContext>(
     IServiceProvider serviceProvider,
-    ILogger<MigrateDatabaseService<TContext>> logger)
+    ILogger<DatabaseExtensions<TContext>> logger)
     : IHostedService
     where TContext : DbContext
 {
@@ -18,25 +18,13 @@ public class MigrateDatabaseService<TContext>(
 
         try
         {
-            var dbPath = Path.Combine(AppContext.BaseDirectory, "modules.db");
-            logger.LogInformation("Проверка БД: {Path}", dbPath);
-
-            var pendingMigrations =
-                await context.Database.GetPendingMigrationsAsync(cancellationToken);
-
-            if (pendingMigrations.Any())
-            {
-                await context.Database.MigrateAsync(cancellationToken);
-                logger.LogInformation("Миграции успешно применены");
-            }
-            else
-            {
-                logger.LogInformation("Нет ожидающих миграций");
-            }
+            logger.LogInformation("Применение миграций.");
+            await context.Database.MigrateAsync(cancellationToken);
+            logger.LogInformation("База данных готова");
         }
         catch (Exception ex)
         {
-            logger.LogCritical(ex, "Ошибка при применении миграций");
+            logger.LogCritical(ex, "Миграции не применились");
             throw;
         }
     }

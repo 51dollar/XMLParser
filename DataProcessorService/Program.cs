@@ -20,12 +20,9 @@ var host = Host.CreateDefaultBuilder(args)
                 builder.ClearProviders();
                 builder.AddConsole();
             });
-            
-            var dbPath = Path.Combine(AppContext.BaseDirectory, "modules.db");
-
-            services.AddDbContext<SqLiteDbContext>(options =>
-                options.UseSqlite($"Data Source={dbPath}"));
-            services.AddHostedService<MigrateDatabaseService<SqLiteDbContext>>();
+            services.AddDbContext<SqliteDbContext>(options =>
+                options.UseSqlite(Environment.GetEnvironmentVariable("DB_CONNECTION_STRING")));
+            services.AddHostedService<DatabaseExtensions<SqliteDbContext>>();
             services.AddScoped<SqliteService>();
             services.AddHostedService<RabbitService>();
         })
