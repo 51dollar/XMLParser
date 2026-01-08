@@ -1,0 +1,72 @@
+
+services:
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: rabbitmq
+    hostname: rabbitmq
+    networks:
+      - app-network
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  file-parser-service:
+    build:
+      context: .
+      dockerfile: FileParserService/Dockerfile
+    container_name: file-parser-service
+    hostname: file-parser
+    networks:
+      - app-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - QUEUE_NAME=${QUEUE_NAME}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
+    restart: unless-stopped
+
+  data-processor-service:
+    build:
+      context: .
+      dockerfile: DataProcessorService/Dockerfile
+    container_name: data-processor-service
+    hostname: data-processor
+    networks:
+      - app-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - QUEUE_NAME=${QUEUE_NAME}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - DB_CONNECTION_STRING=${DB_CONNECTION_STRING}
+    restart: unless-stopped
+
+volumes:
+  rabbitmq_data:
+    driver: local
+  consumer_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
