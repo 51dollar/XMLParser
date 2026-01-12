@@ -1,13 +1,12 @@
 ﻿using System.Collections.Concurrent;
 using Shared.Models.Parser.XML;
 
-namespace FileParserService.Service;
+namespace FileParserService.Processing;
 
-public class ProcessedModelService
+public class ProcessedModelHandler
 {
     private readonly ConcurrentQueue<InstrumentStatus> _queue = new();
     
     public void AddInEnqueue(InstrumentStatus model) => _queue.Enqueue(model);
-    public IEnumerable<InstrumentStatus> GetAllModels() => _queue.ToArray();
     public bool TryGetNextModel(out InstrumentStatus? model) => _queue.TryDequeue(out model); 
 }

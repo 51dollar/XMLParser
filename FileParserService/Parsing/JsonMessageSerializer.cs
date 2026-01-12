@@ -3,9 +3,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Shared.Models.Parser.XML;
 
-namespace FileParserService.Service;
+namespace FileParserService.Parsing;
 
-public class JsonParserService
+public class JsonMessageSerializer
 {
     public byte[] ConvertToJson(InstrumentStatus? model, bool indented = true)
     {
@@ -18,7 +18,7 @@ public class JsonParserService
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
-        string json = JsonSerializer.Serialize(model, options);
+        string json = System.Text.Json.JsonSerializer.Serialize(model, options);
         return Encoding.UTF8.GetBytes(json);
     }
 }

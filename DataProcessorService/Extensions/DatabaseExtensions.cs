@@ -13,14 +13,17 @@ public class DatabaseExtensions<TContext>(
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        using var scope = serviceProvider.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<TContext>();
-
         try
         {
+            using var scope = serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<TContext>();
+            
             logger.LogInformation("Применение миграций.");
+            
             await context.Database.MigrateAsync(cancellationToken);
+            
             logger.LogInformation("База данных готова");
+
         }
         catch (Exception ex)
         {

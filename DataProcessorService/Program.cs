@@ -1,5 +1,6 @@
 ﻿using DataProcessorService.Data;
 using DataProcessorService.Extensions;
+using DataProcessorService.Messaging;
 using DataProcessorService.Service;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -22,9 +23,9 @@ var host = Host.CreateDefaultBuilder(args)
             });
             services.AddDbContext<SqliteDbContext>(options =>
                 options.UseSqlite(Environment.GetEnvironmentVariable("DB_CONNECTION_STRING")));
-            services.AddHostedService<DatabaseExtensions<SqliteDbContext>>();
             services.AddScoped<SqliteService>();
-            services.AddHostedService<RabbitService>();
+            services.AddHostedService<DatabaseExtensions<SqliteDbContext>>();
+            services.AddHostedService<RabbitConsumer>();
         })
     .Build();
 

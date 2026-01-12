@@ -1,4 +1,9 @@
-﻿using FileParserService.Service;
+﻿using FileParserService.FileSystem;
+using FileParserService.Messaging;
+using FileParserService.Parsing;
+using FileParserService.Processing;
+using FileParserService.Service;
+using FileParserService.Workers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -18,19 +23,28 @@ var host = Host.CreateDefaultBuilder(args)
             builder.AddConsole();
         });
 
-        services.AddSingleton<ProcessedModelService>();
-        services.AddSingleton<FolderPathService>(provider =>
-        {
-            var configuration = context.Configuration;
-            var logger = provider.GetRequiredService<ILogger<FolderPathService>>();
-            string configPath = Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json");
-            return new FolderPathService(configuration, logger, configPath);
-        });
-        services.AddSingleton<StatusChangeService>();
-        services.AddSingleton<JsonParserService>();
-        services.AddSingleton<RabbitService>();
+        services.AddSingleton<ProcessedModelHandler>();
+        services.AddSingleton<FolderPathService>();
+        services.AddSingleton<XmlFileProvider>();
+        services.AddSingleton<ModuleStateGenerator>();
+        services.AddSingleton<StatusChangeProcessor>();
+        services.AddSingleton<JsonMessageSerializer>();
+        services.AddSingleton<RabbitPublisher>();
         services.AddHostedService(provider => 
-            provider.GetRequiredService<RabbitService>());
+            provider.GetRequiredService<RabbitPublisher>());
+        services.AddSingleton<XmlParser>(provider =>
+        {
+            var logger = provider.GetRequiredService<ILogger<XmlParser>>();
+            var folderPathService = provider.GetRequiredService<FolderPathService>();
+            var fileProvider = provider.GetRequiredService<XmlFileProvider>();
+
+            return new XmlParser(
+                logger,
+                folderPathService,
+                fileProvider,
+                pollIntervalMs: 1000
+            );
+        });
         services.AddHostedService<XmlParseWorker>();
         services.AddHostedService<JsonPublishWorker>();
     })

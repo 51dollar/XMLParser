@@ -9,32 +9,49 @@ public class SqliteService(SqliteDbContext dbContext, ILogger<SqliteService> log
 {
     public async Task AddDateAsync(string? moduleCategoryId, string? moduleState, CancellationToken token)
     {
-        if (string.IsNullOrWhiteSpace(moduleCategoryId))
-            throw new ArgumentException("ModuleCategoryId нулевой");
-
-        if (string.IsNullOrWhiteSpace(moduleState))
-            throw new ArgumentException("ModuleState нулевой");
-        
-        var entity = await dbContext.Modules
-            .FirstOrDefaultAsync(x => x.ModuleCategoryId == moduleCategoryId, token);
-
-        if (entity == null)
+        if (string.IsNullOrWhiteSpace(moduleCategoryId)
+            || string.IsNullOrWhiteSpace(moduleState))
         {
-            entity = new ModuleData
+            logger.LogWarning(
+                "Пропуск записи: некорректные данные. CategoryId={CategoryId}, State={State}",
+                moduleCategoryId,
+                moduleState);
+            return;
+        }
+
+        try
+        {
+            var entity = await dbContext.Modules
+                .FirstOrDefaultAsync(x => x.ModuleCategoryId == moduleCategoryId, token);
+
+            if (entity == null)
             {
-                ModuleCategoryId = moduleCategoryId,
-                ModuleState = moduleState
-            };
+                entity = new ModuleData
+                {
+                    ModuleCategoryId = moduleCategoryId,
+                    ModuleState = moduleState
+                };
 
-            await dbContext.Modules.AddAsync(entity, token);
-            logger.LogInformation("Создана новая запись {ModuleCategoryID} в DB", moduleCategoryId);
+                dbContext.Modules.Add(entity);
+                logger.LogInformation("Создана новая запись {ModuleCategoryID} в DB", moduleCategoryId);
+            }
+            else
+            {
+                entity.ModuleState = moduleState;
+                logger.LogDebug("Запись обновлена {ModuleCategoryID}", moduleCategoryId);
+            }
+
+            await dbContext.SaveChangesAsync(token);
         }
-        else
+        catch (DbUpdateException ex)
         {
-            entity.ModuleState = moduleState;
-            logger.LogInformation("Запись обновлена {ModuleCategoryID}", moduleCategoryId);
+            logger.LogWarning(ex, "Конфликт при сохранении ModuleCategoryId={CategoryId}",
+                moduleCategoryId);
         }
-
-        await dbContext.SaveChangesAsync(token);
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Сохранение отменено. ModuleCategoryId={CategoryId}",
+                moduleCategoryId);
+        }
     }
 }

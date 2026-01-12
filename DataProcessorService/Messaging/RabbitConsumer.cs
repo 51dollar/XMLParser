@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
+using DataProcessorService.Service;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -8,16 +9,18 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using Shared.Models.Parser.JSON;
 
-namespace DataProcessorService.Service;
+namespace DataProcessorService.Messaging;
 
-public class RabbitService(
+public class RabbitConsumer(
     IConfiguration config,
-    ILogger<RabbitService> logger,
+    ILogger<RabbitConsumer> logger,
     IServiceScopeFactory scopeFactory)
     : IHostedService, IAsyncDisposable
 {
     private IConnection? _connection;
     private IChannel? _channel;
+    
+    private CancellationTokenSource? _processingCts;
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -52,25 +55,28 @@ public class RabbitService(
 
                 _connection = await factory.CreateConnectionAsync(cancellationToken);
                 _channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
+                
+                await _channel.BasicQosAsync(0, 1, false, cancellationToken);
 
                 await _channel.QueueDeclareAsync(
                     queueName,
-                    true,
-                    false,
-                    false,
+                    durable: true,
+                    exclusive: false,
+                    autoDelete: false,
                     cancellationToken: cancellationToken);
 
-                var eventConsumer = new AsyncEventingBasicConsumer(_channel);
-                eventConsumer.ReceivedAsync += HandleMessageAsync;
+                _processingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                
+                var consumer = new AsyncEventingBasicConsumer(_channel);
+                consumer.ReceivedAsync += (sender, args) => HandleMessageAsync(args, _processingCts.Token);
 
                 await _channel.BasicConsumeAsync(
                     queue: queueName,
                     autoAck: false,
-                    consumer: eventConsumer,
-                    cancellationToken: cancellationToken
-                );
+                    consumer: consumer,
+                    cancellationToken: cancellationToken);
 
-                logger.LogInformation("RabbitMQ запущен. Очередь: {Queue}", queueName);
+                logger.LogInformation("Rabbit Consumer запущен. Очередь: {Queue}", queueName);
                 return;
             }
             catch (Exception ex) when (attempt < maxRetries)
@@ -89,37 +95,46 @@ public class RabbitService(
         }
     }
     
-    public Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("RabbitMQ останавлин.");
-        return Task.CompletedTask;
+        logger.LogInformation("Остановка Rabbit Consumer");
+        _processingCts?.Cancel();
+
+        if (_channel != null)
+            await _channel.CloseAsync(cancellationToken);
+
+        if (_connection != null)
+            await _connection.CloseAsync(cancellationToken);
+        
     }
 
     public async ValueTask DisposeAsync()
     {
         if (_channel != null)
         {
-            await _channel.CloseAsync();
-            logger.LogInformation("Канал RabbitMQ закрыт");
+            await _channel.DisposeAsync();
+            logger.LogInformation("Канал Rabbit Consumer закрыт");
         }
 
         if (_connection != null)
         {
-            await _connection.CloseAsync();
-            logger.LogInformation("Соединение RabbitMQ закрыто");
+            await _connection.DisposeAsync();
+            logger.LogInformation("Соединение Rabbit Consumer закрыто");
         }
     }
 
-    private async Task HandleMessageAsync(object sender, BasicDeliverEventArgs ea)
+    private async Task HandleMessageAsync(BasicDeliverEventArgs ea,
+        CancellationToken token)
     {
         logger.LogInformation("Начало обработки сообщения.");
         try
         {
             var body = Encoding.UTF8.GetString(ea.Body.ToArray());
+            
             var model = JsonSerializer.Deserialize<InstrumentStatusDto>(
                     body,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-                ?? throw new InvalidOperationException("Ошибка десериализации json.");
+                    ?? throw new InvalidOperationException("Ошибка десериализации json.");
 
             logger.LogInformation("Данные с сервиса получены! Id: {module}", model.PackageID);
 
@@ -131,15 +146,19 @@ public class RabbitService(
                 await sqliteService.AddDateAsync(
                     moduleCategoryId,
                     moduleState,
-                    CancellationToken.None);
+                    token);
             }
 
-            await _channel!.BasicAckAsync(ea.DeliveryTag, false);
+            await _channel!.BasicAckAsync(ea.DeliveryTag, false, token);
             logger.LogInformation("Сообщение успешно обработано");
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogWarning("Обработка сообщения отменена");
         }
         catch (Exception ex)
         {
-            await _channel!.BasicNackAsync(ea.DeliveryTag, false, false);
+            await _channel!.BasicNackAsync(ea.DeliveryTag, false, true, token);
             logger.LogError(ex, "Ошибка обработки сообщения");
         }
     }

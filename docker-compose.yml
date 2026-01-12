@@ -34,11 +34,11 @@ services:
       rabbitmq:
         condition: service_healthy
     environment:
-      - RABBITMQ_HOST=${RABBITMQ_HOST}
-      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ__HOST=${RABBITMQ_HOST}
+      - RABBITMQ__PORT=${RABBITMQ_PORT}
       - QUEUE_NAME=${QUEUE_NAME}
-      - RABBITMQ_USER=${RABBITMQ_USER}
-      - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - RABBITMQ__USER=${RABBITMQ_USER}
+      - RABBITMQ__PASS=${RABBITMQ_PASS}
     restart: unless-stopped
 
   data-processor-service:
@@ -53,11 +53,11 @@ services:
       rabbitmq:
         condition: service_healthy
     environment:
-      - RABBITMQ_HOST=${RABBITMQ_HOST}
-      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ__HOST=${RABBITMQ_HOST}
+      - RABBITMQ__PORT=${RABBITMQ_PORT}
       - QUEUE_NAME=${QUEUE_NAME}
-      - RABBITMQ_USER=${RABBITMQ_USER}
-      - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - RABBITMQ__USER=${RABBITMQ_USER}
+      - RABBITMQ__PASS=${RABBITMQ_PASS}
       - DB_CONNECTION_STRING=${DB_CONNECTION_STRING}
     restart: unless-stopped
 

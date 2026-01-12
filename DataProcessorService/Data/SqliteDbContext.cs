@@ -11,17 +11,20 @@ public class SqliteDbContext(DbContextOptions<SqliteDbContext> options) : DbCont
     {
         modelBuilder.Entity<ModuleData>(entity =>
         {
-            entity.HasKey(m => m.ModuleCategoryId);
+            entity.HasKey(m => m.Id);
 
             entity.Property(m => m.ModuleCategoryId)
                 .IsRequired()
                 .HasColumnType("TEXT")
                 .HasMaxLength(50);
-
+            
             entity.Property(m => m.ModuleState)
                 .IsRequired()
                 .HasColumnType("TEXT")
                 .HasMaxLength(30);
+            
+            entity.HasIndex(m => m.ModuleCategoryId)
+                .IsUnique();
         });
     }
 }
